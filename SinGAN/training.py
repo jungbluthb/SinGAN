@@ -170,9 +170,10 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
         # (2) Update G network: maximize D(G(z))
         ###########################
 
+        fake = fake.detach()
         for j in range(opt.Gsteps):
             netG.zero_grad()
-            output = netD(fake.detach())
+            output = netD(fake)
             #D_fake_map = output.detach()
             errG = -output.mean()
             errG.backward(retain_graph=True)
