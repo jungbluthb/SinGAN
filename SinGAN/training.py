@@ -8,6 +8,10 @@ import math
 import matplotlib.pyplot as plt
 from SinGAN.imresize import imresize
 
+import pathlib
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
+
 def train(opt,Gs,Zs,reals,NoiseAmp):
     real_ = functions.read_image(opt)
     in_s = 0
@@ -15,6 +19,10 @@ def train(opt,Gs,Zs,reals,NoiseAmp):
     real = imresize(real_,opt.scale1,opt)
     reals = functions.creat_reals_pyramid(real,reals,opt)
     nfc_prev = 0
+
+    # initialize tensorboard
+    writer = SummaryWriter(pathlib.Path().home() / 'project/ml/tmp/SinGAN_jungbluthb/Tensorboard/')
+    writer.add_image('input', torchvision.utils.make_grid(real))
 
     while scale_num<opt.stop_scale+1:
         opt.nfc = min(opt.nfc_init * pow(2, math.floor(scale_num / 4)), 128)
@@ -42,6 +50,9 @@ def train(opt,Gs,Zs,reals,NoiseAmp):
         G_curr.eval()
         D_curr = functions.reset_grads(D_curr,False)
         D_curr.eval()
+        # import pdb
+        # pdb.set_trace()
+        # writer.add_graph(D_curr, in_s)
 
         Gs.append(G_curr)
         Zs.append(z_curr)
@@ -55,6 +66,8 @@ def train(opt,Gs,Zs,reals,NoiseAmp):
         scale_num+=1
         nfc_prev = opt.nfc
         del D_curr,G_curr
+
+    writer.close()
     return
 
 
@@ -170,7 +183,9 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
         # (2) Update G network: maximize D(G(z))
         ###########################
 
-        fake = fake.detach()
+        #####
+        z_prev = z_prev.detach()
+
         for j in range(opt.Gsteps):
             netG.zero_grad()
             output = netD(fake)
@@ -183,7 +198,7 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
                     z_prev = functions.quant2centers(z_prev, centers)
                     plt.imsave('%s/z_prev.png' % (opt.outf), functions.convert_image_np(z_prev), vmin=0, vmax=1)
                 Z_opt = opt.noise_amp*z_opt+z_prev
-                rec_loss = alpha*loss(netG(Z_opt.detach(),z_prev),real)
+                rec_loss = alpha*loss(netG(Z_opt.detach(),z_prev), real)
                 rec_loss.backward(retain_graph=True)
                 rec_loss = rec_loss.detach()
             else:
@@ -191,6 +206,9 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
                 rec_loss = 0
 
             optimizerG.step()
+            ####
+            if j == 0:
+                fake = fake.detach()
 
         errG2plot.append(errG.detach()+rec_loss)
         D_real2plot.append(D_x)
@@ -215,6 +233,7 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
 
         schedulerD.step()
         schedulerG.step()
+
 
     functions.save_networks(netG,netD,z_opt,opt)
     return z_opt,in_s,netG    
