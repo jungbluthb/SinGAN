@@ -183,8 +183,6 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
         # (2) Update G network: maximize D(G(z))
         ###########################
 
-        #####
-        z_prev = z_prev.detach()
 
         for j in range(opt.Gsteps):
             netG.zero_grad()
@@ -209,6 +207,7 @@ def train_single_scale(netD,netG,reals,Gs,Zs,in_s,NoiseAmp,opt,centers=None):
             ####
             if j == 0:
                 fake = fake.detach()
+                z_prev = z_prev.detach()
 
         errG2plot.append(errG.detach()+rec_loss)
         D_real2plot.append(D_x)
